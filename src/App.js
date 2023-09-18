@@ -244,11 +244,11 @@ function App() {
   const [time, setTime] = useState(Date.now())
 
   const getN3Packets = (stats) => {
-    return stats.RxGtpPdu
+    return stats.rx_gtp_pdu
   }
 
   const getN6Packets = (stats) => {
-    return (stats.RxIp4 + stats.RxIp6) - (stats.RxGtpEcho + stats.RxGtpPdu + stats.RxGtpOther + stats.RxGtpUnexp)
+    return (stats.rx_ip4 + stats.rx_ip6) - (stats.rx_gtp_echo + stats.rx_gtp_pdu + stats.rx_gtp_other + stats.rx_gtp_unexp)
   }
 
   const calcChange = (getPacketsFunc) => {
