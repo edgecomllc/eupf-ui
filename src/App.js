@@ -104,7 +104,7 @@ const ChartTitle = styled(Box)({
   fontSize: '1.2rem',
   fontWeight: 700,
   marginBottom: 20,
-  marginLeft: 15,
+  marginLeft: 40,
 })
 
 
@@ -184,7 +184,10 @@ const options = {
         lineWidth: (context) => (context.tick.value === 0 ? 1 : 0)
       }
     }
-  }
+  },
+  // animation: {
+  //   duration: 0
+  // }
 };
 
 // Also charts options.
@@ -220,8 +223,8 @@ const getEmptyChartMeasurementsArray = () => {
   return [...Array(arrayLength).keys()].map((i) => { return { x: currTime - i * updateTime, y: 0 } }).reverse()
 }
 
-// Better to change to 1 sec.
-const updateTime = 2000
+// Time between retrieving data from api and updating corresponding elements (in ms).
+const updateTime = 1000
 
 function App() {
   const apiPort = process.env.NODE_ENV === 'development' ? process.env.REACT_APP_DEV_API_PORT : window.env.API_PORT
@@ -234,10 +237,26 @@ function App() {
   // Better to use TypeScript to define such structs (received from api).
   const [config, setConfig] = useState()
   const [pfcpAssociations, setPfcpAssociations] = useState()
-  const [xdpStats, setXdpStats] = useState({ prev: null, curr: null, changed: false })
-  const [chartMeasurements, setChartMeasurements] = useState(getEmptyChartMeasurementsArray())
+  const [packetStats, setPacketStats] = useState({ prev: null, curr: null })
+  const [chartMeasurementsN3, setChartMeasurementsN3] = useState(getEmptyChartMeasurementsArray())
+  const [chartMeasurementsN6, setChartMeasurementsN6] = useState(getEmptyChartMeasurementsArray())
 
   const [time, setTime] = useState(Date.now())
+
+  const getN3Packets = (stats) => {
+    return stats.RxGtpPdu
+  }
+
+  const getN6Packets = (stats) => {
+    return (stats.RxIp4 + stats.RxIp6) - (stats.RxGtpEcho + stats.RxGtpPdu + stats.RxGtpOther + stats.RxGtpUnexp)
+  }
+
+  const calcChange = (getPacketsFunc) => {
+    if (packetStats.prev === null || packetStats.curr === null) {
+      return 0
+    }
+    return getPacketsFunc(packetStats.curr) - getPacketsFunc(packetStats.prev)
+  }
 
   // Executes every <updateTime> milliseconds.
   useEffect(() => {
@@ -251,19 +270,23 @@ function App() {
       .then(json => setPfcpAssociations(json))
       .catch(error => console.error(error));
 
-    fetch('http://localhost:' + apiPort + '/api/v1/xdp_stats')
+    fetch('http://localhost:' + apiPort + '/api/v1/packet_stats')
       .then(response => response.json())
       .then(json => {
-        setXdpStats(
+        setPacketStats(
           {
-            prev: xdpStats.curr,
+            prev: packetStats.curr,
             curr: json,
-            changed: xdpStats.curr !== null && (json.pass - xdpStats.curr.pass) !== 0
           });
-        setChartMeasurements(chartMeasurements.slice(1).concat(
+        setChartMeasurementsN3(chartMeasurementsN3.slice(1).concat(
           {
             x: Date.now(),
-            y: xdpStats.curr ? json.pass - xdpStats.curr.pass : 0
+            y: packetStats.curr ? getN3Packets(json) - getN3Packets(packetStats.curr) : 0
+          }));
+        setChartMeasurementsN6(chartMeasurementsN6.slice(1).concat(
+          {
+            x: Date.now(),
+            y: packetStats.curr ? getN6Packets(json) - getN6Packets(packetStats.curr) : 0
           }))
       })
       .catch(error => console.error(error));
@@ -291,7 +314,7 @@ function App() {
         {/* Main container */}
         <Container sx={{
           display: 'flex', height: '92.3354vh',
-          justifyContent: enoughHeight ? 'center' : 'start', 
+          justifyContent: enoughHeight ? 'center' : 'start',
           alignItems: 'center', flexDirection: 'column', mt: 3,
           mb: enoughHeight ? 0 : 8
         }}>
@@ -318,14 +341,14 @@ function App() {
             </MediumBox>
             <MediumBox sx={{ width: 100, height: 50, mr: 4 }}>gNB-s</MediumBox>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SmallBox sx={{ mr: 2, backgroundColor: xdpStats.changed ? myActiveGreen : 'white' }}>N3</SmallBox>
+              <SmallBox sx={{ mr: 2, backgroundColor: calcChange(getN3Packets) === 0 ? 'white' : myActiveGreen }}>N3</SmallBox>
             </Box>
             <MediumBox sx={{ width: 150, height: 50 }}>
               UPF
               <HorizontalLine />
             </MediumBox>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SmallBox sx={{ ml: 2, backgroundColor: xdpStats.changed ? myActiveGreen : 'white' }}>N6</SmallBox>
+              <SmallBox sx={{ ml: 2, backgroundColor: calcChange(getN6Packets) === 0 ? 'white' : myActiveGreen }}>N6</SmallBox>
             </Box>
             <Box sx={{ width: 100, ml: 4 }}></Box>
             <Box sx={{ width: 150, ml: 4 }}>
@@ -334,10 +357,10 @@ function App() {
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'row', gap: 19.3, mt: 0 }}>
             <Box sx={{ width: '67px', display: 'flex', justifyContent: 'center' }}>
-              <RxTx>{xdpStats.changed ? xdpStats.curr.pass - xdpStats.prev.pass : '0'}/?</RxTx>
+              <RxTx>{calcChange(getN3Packets)}/?</RxTx>
             </Box>
             <Box sx={{ width: '67px', display: 'flex', justifyContent: 'center' }}>
-              <RxTx>{xdpStats.changed ? xdpStats.curr.pass - xdpStats.prev.pass : '0'}/?</RxTx>
+              <RxTx>{calcChange(getN6Packets)}/?</RxTx>
             </Box>
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'row', mt: 3 }}>
@@ -378,12 +401,12 @@ function App() {
             <Stack sx={{ direction: 'column', alignItems: 'center' }}>
               <ChartTitle>N3</ChartTitle>
               <Box width={300} ><Line options={options}
-                data={constructGraphData('N3 uplink', 'N3 downlink', chartMeasurements, chartMeasurements.map((item) => { return { x: item.x, y: 0 } }))} /></Box>
+                data={constructGraphData('N3 uplink', 'N3 downlink', chartMeasurementsN3, chartMeasurementsN3.map((item) => { return { x: item.x, y: 0 } }))} /></Box>
             </Stack>
             <Stack sx={{ direction: 'column', alignItems: 'center' }}>
               <ChartTitle>N6</ChartTitle>
               <Box width={300} ><Line options={options}
-                data={constructGraphData('N6 uplink', 'N6 downlink', chartMeasurements, chartMeasurements.map((item) => { return { x: item.x, y: 0 } }))} /></Box>
+                data={constructGraphData('N6 uplink', 'N6 downlink', chartMeasurementsN6, chartMeasurementsN6.map((item) => { return { x: item.x, y: 0 } }))} /></Box>
             </Stack>
           </Box>
         </Container>
