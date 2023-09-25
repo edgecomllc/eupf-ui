@@ -227,7 +227,7 @@ const getEmptyChartMeasurementsArray = () => {
 const updateTime = 1000
 
 function App() {
-  const apiPort = process.env.NODE_ENV === 'development' ? process.env.REACT_APP_DEV_API_PORT : window.env.API_PORT
+  const apiPort = process.env.NODE_ENV === 'development' ? process.env.REACT_APP_DEV_API_PORT : process.env.REACT_APP_PROD_NGINX_PORT
   const { height, width } = useWindowDimensions();
 
   // Trackers to maintain responsive design.

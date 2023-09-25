@@ -8,6 +8,6 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.24.0-alpine AS production
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/build /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8081
